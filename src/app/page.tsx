@@ -2,6 +2,10 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { MediaPreview } from "@/components/media-preview";
 
+// Shows live community posts, so it must not be frozen at build time
+// (also avoids the build depending on database reachability).
+export const dynamic = "force-dynamic";
+
 function formatIDR(n: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
 }
