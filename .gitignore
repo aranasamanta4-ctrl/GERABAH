@@ -59,3 +59,8 @@ skills-lock.json
 .shots/
 scripts/preview-invoice.pdf
 scripts/preview-invoice.png
+
+# Reference documents (large binaries — proposal, booklet, AppSheet export). Kept
+# on disk for context but not committed. Descriptions live in docs/reference/README.md
+/docs/reference/*
+!/docs/reference/README.md
