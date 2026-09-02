@@ -47,20 +47,20 @@ export default async function FinancePage({
       <Card className="mb-4">
         <p className="label">Saldo Kas Usaha</p>
         <p
-          className={`tnum mt-1 font-display text-[34px] leading-none ${
+          className={`tnum mt-1 truncate font-display text-[clamp(26px,9vw,36px)] leading-none ${
             balance >= 0 ? "text-charcoal" : "text-rose"
           }`}
         >
           {formatIDR(balance)}
         </p>
         <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-3.5 text-[13px]">
-          <div>
+          <div className="min-w-0">
             <span className="label block">Total Masuk</span>
-            <span className="tnum font-bold text-sage">{formatIDR(totalIncome)}</span>
+            <span className="tnum block truncate font-bold text-cobalt">{formatIDR(totalIncome)}</span>
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="label block">Total Keluar</span>
-            <span className="tnum font-bold text-terracotta">{formatIDR(totalExpense)}</span>
+            <span className="tnum block truncate font-bold text-terracotta">{formatIDR(totalExpense)}</span>
           </div>
         </div>
       </Card>
@@ -107,7 +107,7 @@ export default async function FinancePage({
               <div key={day}>
                 <div className="mb-1.5 flex items-baseline justify-between px-1">
                   <span className="text-[13px] font-semibold text-charcoal">{formatDate(items[0].date)}</span>
-                  <span className={`tnum text-xs font-medium ${dayNet >= 0 ? "text-sage" : "text-terracotta"}`}>
+                  <span className={`tnum shrink-0 text-xs font-medium ${dayNet >= 0 ? "text-cobalt" : "text-terracotta"}`}>
                     {dayNet >= 0 ? "+" : "−"}
                     {formatIDR(Math.abs(dayNet))}
                   </span>
@@ -121,7 +121,7 @@ export default async function FinancePage({
                         t.paymentMethod?.name ?? "Tunai"
                       }`}
                       amount={`${t.type === "INCOME" ? "+" : "−"}${formatIDR(t.amount)}`}
-                      amountTone={t.type === "INCOME" ? "positive" : "negative"}
+                      amountTone={t.type === "INCOME" ? "income" : "expense"}
                     />
                   ))}
                 </List>

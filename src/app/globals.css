@@ -16,6 +16,12 @@
   --color-charcoal: #23201d;
   --color-muted: #7b7169;
 
+  /* Series colours for money flow. Cobalt is validated against terracotta for
+     colour-vision deficiency (protan dE 15.8); sage is NOT — it stays a status
+     colour and is never used for a data series beside terracotta. */
+  --color-cobalt: #1a6e9e;
+  --color-cobalt-soft: #e9f1f7;
+
   --color-sage: #4f7a52;
   --color-sage-soft: #edf3ec;
   --color-amber: #b07307;

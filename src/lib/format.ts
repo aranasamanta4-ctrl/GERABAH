@@ -14,6 +14,33 @@ export function formatIDRPlain(n: number) {
   return `${sign}Rp ${new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Math.abs(n))}`;
 }
 
+/**
+ * Short form for narrow stat tiles: "Rp 1,5 jt". Exact figures stay on the
+ * detail and report screens — this is only so a number never outgrows its box.
+ */
+export function formatIDRCompact(n: number) {
+  const sign = n < 0 ? "−" : "";
+  const abs = Math.abs(n);
+
+  const trim = (value: number, unit: string) => {
+    const rounded = Math.round(value * 10) / 10;
+    const text = rounded % 1 === 0 ? String(rounded) : String(rounded).replace(".", ",");
+    return `${sign}Rp ${text} ${unit}`;
+  };
+
+  if (abs < 10_000) return `${sign}Rp ${new Intl.NumberFormat("id-ID").format(Math.round(abs))}`;
+
+  // Compare against the rounded value, so 999.999.999 becomes "Rp 1 M" rather
+  // than rolling over into a nonsense "Rp 1000 jt".
+  const ribu = abs / 1_000;
+  if (ribu < 999.5) return `${sign}Rp ${Math.round(ribu)} rb`;
+
+  const juta = abs / 1_000_000;
+  if (juta < 999.95) return trim(juta, "jt");
+
+  return trim(abs / 1_000_000_000, "M");
+}
+
 export function formatDate(d: Date) {
   return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
 }

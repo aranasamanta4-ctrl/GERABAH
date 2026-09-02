@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/current-user";
 import { resolveRange, previousRange } from "@/lib/date-range";
-import { formatIDR, formatDate } from "@/lib/format";
+import { formatIDR, formatIDRCompact, formatDate } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { Card, EmptyState, SectionTitle, Stat, Tip } from "@/components/ui";
 import { IconDownload } from "@/components/icons";
@@ -27,11 +27,11 @@ function StatementRow({
 }: {
   label: string;
   value: number;
-  tone?: "neutral" | "positive" | "negative";
+  tone?: "neutral" | "income" | "expense";
   bold?: boolean;
   divider?: boolean;
 }) {
-  const color = tone === "positive" ? "text-sage" : tone === "negative" ? "text-terracotta" : "text-charcoal";
+  const color = tone === "income" ? "text-cobalt" : tone === "expense" ? "text-terracotta" : "text-charcoal";
   return (
     <div
       className={`flex items-baseline justify-between gap-4 py-2 ${
@@ -151,12 +151,27 @@ export default async function ReportsPage({
       ) : (
         <>
           <div className="grid grid-cols-3 gap-2.5">
-            <Stat label="Uang Masuk" value={formatIDR(income)} tone="positive" />
-            <Stat label="Uang Keluar" value={formatIDR(expense)} tone="negative" />
+            <Stat
+              label="Uang Masuk"
+              value={formatIDRCompact(income)}
+              exact={formatIDR(income)}
+              tone="income"
+            />
+            <Stat
+              label="Uang Keluar"
+              value={formatIDRCompact(expense)}
+              exact={formatIDR(expense)}
+              tone="expense"
+            />
             <Stat
               label={profit >= 0 ? "Untung" : "Rugi"}
-              value={formatIDR(profit)}
-              hint={prevProfit !== 0 ? `${pctChange(profit, prevProfit) >= 0 ? "▲" : "▼"} ${Math.abs(pctChange(profit, prevProfit)).toFixed(0)}% vs lalu` : undefined}
+              value={formatIDRCompact(profit)}
+              exact={formatIDR(profit)}
+              hint={
+                prevProfit !== 0
+                  ? `${pctChange(profit, prevProfit) >= 0 ? "+" : "−"}${Math.abs(pctChange(profit, prevProfit)).toFixed(0)}% vs lalu`
+                  : undefined
+              }
               tone={profit >= 0 ? "neutral" : "negative"}
             />
           </div>
@@ -173,7 +188,7 @@ export default async function ReportsPage({
               <p className="py-2 text-[13px] text-muted">Belum ada pemasukan periode ini.</p>
             ) : (
               incomeByCategory.map(([name, amount]) => (
-                <StatementRow key={name} label={name} value={amount} tone="positive" />
+                <StatementRow key={name} label={name} value={amount} tone="income" />
               ))
             )}
             <StatementRow label="Total Pendapatan" value={income} bold divider />
@@ -183,7 +198,7 @@ export default async function ReportsPage({
               <p className="py-2 text-[13px] text-muted">Belum ada pengeluaran periode ini.</p>
             ) : (
               expenseByCategory.map(([name, amount]) => (
-                <StatementRow key={name} label={name} value={amount} tone="negative" />
+                <StatementRow key={name} label={name} value={amount} tone="expense" />
               ))
             )}
             <StatementRow label="Total Pengeluaran" value={expense} bold divider />
@@ -192,7 +207,7 @@ export default async function ReportsPage({
               <span className="text-[14px] font-bold text-charcoal">
                 {profit >= 0 ? "Laba Bersih" : "Rugi Bersih"}
               </span>
-              <span className={`tnum text-[17px] font-bold ${profit >= 0 ? "text-sage" : "text-rose"}`}>
+              <span className={`tnum shrink-0 text-[17px] font-bold ${profit >= 0 ? "text-sage" : "text-rose"}`}>
                 {formatIDR(profit)}
               </span>
             </div>
@@ -208,8 +223,8 @@ export default async function ReportsPage({
               Berapa uang tunai yang benar-benar ada di tangan.
             </p>
             <StatementRow label="Saldo awal periode" value={opening} />
-            <StatementRow label="Kas masuk" value={income} tone="positive" />
-            <StatementRow label="Kas keluar" value={expense} tone="negative" />
+            <StatementRow label="Kas masuk" value={income} tone="income" />
+            <StatementRow label="Kas keluar" value={expense} tone="expense" />
             <StatementRow label="Saldo akhir periode" value={closing} bold divider />
           </Card>
 
