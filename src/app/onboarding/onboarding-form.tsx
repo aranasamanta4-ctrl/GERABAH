@@ -21,13 +21,15 @@ export default function OnboardingForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, description, location }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.error ?? "Gagal membuat usaha.");
         return;
       }
       router.push("/dashboard");
       router.refresh();
+    } catch {
+      setError("Tidak bisa menyimpan. Periksa koneksi internet lalu coba lagi.");
     } finally {
       setLoading(false);
     }

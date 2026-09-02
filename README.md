@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GERABAH
 
-## Getting Started
+Aplikasi pencatatan keuangan sederhana untuk UMKM kerajinan gerabah, dipakai langsung dari HP (PWA). Dibangun untuk program pengabdian masyarakat PPMI KKSIK ITB di Desa Sitiwinangun, Kabupaten Cirebon.
 
-First, run the development server:
+## Tech stack
+
+- **Next.js 16** (App Router, Turbopack, Server Actions)
+- **PostgreSQL di Supabase** + **Prisma 7** (`@prisma/adapter-pg`)
+- **Tailwind CSS v4**, palet terracotta/clay/cream
+- Auth custom (JWT di httpOnly cookie, bcrypt) — bukan NextAuth
+- Invoice PDF via `pdf-lib` (generate di server)
+- Bahasa UI: Bahasa Indonesia
+
+## Menjalankan lokal
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Butuh file `.env` dengan `DATABASE_URL` (Supabase) dan `AUTH_SECRET`. Database menyambung ke Supabase, jadi datanya persistent.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Kalau skema database berubah:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npx prisma migrate dev --name <nama_perubahan>   # butuh Session pooler, port 5432
+npx prisma generate
+```
 
-## Learn More
+## Dokumentasi
 
-To learn more about Next.js, take a look at the following resources:
+| | |
+|--|--|
+| [`docs/STATUS-PROYEK.md`](./docs/STATUS-PROYEK.md) | Status lengkap: fitur, struktur kode, infrastruktur, cara lanjut. **Mulai dari sini.** |
+| [`docs/PENDING.md`](./docs/PENDING.md) | Yang belum selesai & blocker sebelum production. |
+| [`docs/`](./docs/) | Indeks dokumentasi lain. |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Vercel (region `icn1`/Seoul, dekat database). `postinstall` menjalankan `prisma generate`. Lihat `docs/PENDING.md` untuk hal yang wajib diselesaikan sebelum production (upload media, `AUTH_SECRET`, env Vercel).

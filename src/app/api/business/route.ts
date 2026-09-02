@@ -22,21 +22,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Data tidak valid." }, { status: 400 });
   }
 
-  const existing = await prisma.business.findFirst({ where: { ownerId: session.userId } });
-  if (existing) {
-    return NextResponse.json({ error: "Business sudah dibuat." }, { status: 409 });
+  try {
+    let business = await prisma.business.findFirst({ where: { ownerId: session.userId } });
+    if (!business) {
+      business = await prisma.business.create({
+        data: {
+          ownerId: session.userId,
+          name: parsed.data.name,
+          description: parsed.data.description,
+          location: parsed.data.location,
+        },
+      });
+    }
+
+    // idempotent — aman diulang kalau langkah ini gagal separuh jalan
+    await seedBusinessDefaults(business.id);
+
+    return NextResponse.json({ id: business.id });
+  } catch (err) {
+    console.error("POST /api/business gagal:", err);
+    const message = err instanceof Error ? err.message : "Gagal membuat usaha.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  const business = await prisma.business.create({
-    data: {
-      ownerId: session.userId,
-      name: parsed.data.name,
-      description: parsed.data.description,
-      location: parsed.data.location,
-    },
-  });
-
-  await seedBusinessDefaults(business.id);
-
-  return NextResponse.json({ id: business.id });
 }

@@ -26,21 +26,27 @@ const DEFAULT_SALES_CHANNELS = [
 const DEFAULT_PAYMENT_METHODS = ["Tunai", "Transfer Bank", "QRIS", "E-wallet", "Debit/Kredit", "Lainnya"];
 
 export async function seedBusinessDefaults(businessId: string) {
-  await prisma.$transaction([
-    prisma.productCategory.createMany({
-      data: DEFAULT_PRODUCT_CATEGORIES.map((name) => ({ businessId, name })),
-    }),
-    prisma.expenseCategory.createMany({
-      data: DEFAULT_EXPENSE_CATEGORIES.map((name) => ({ businessId, name })),
-    }),
-    prisma.incomeCategory.createMany({
-      data: DEFAULT_INCOME_CATEGORIES.map((name) => ({ businessId, name })),
-    }),
-    prisma.salesChannel.createMany({
-      data: DEFAULT_SALES_CHANNELS.map((name) => ({ businessId, name })),
-    }),
-    prisma.paymentMethod.createMany({
-      data: DEFAULT_PAYMENT_METHODS.map((name) => ({ businessId, name })),
-    }),
-  ]);
+  // Dijalankan berurutan (bukan $transaction) supaya kompatibel dengan koneksi
+  // lewat PgBouncer transaction pooler. Tiap createMany idempotent
+  // (skipDuplicates + unique [businessId, name]), jadi aman diulang.
+  await prisma.productCategory.createMany({
+    data: DEFAULT_PRODUCT_CATEGORIES.map((name) => ({ businessId, name })),
+    skipDuplicates: true,
+  });
+  await prisma.expenseCategory.createMany({
+    data: DEFAULT_EXPENSE_CATEGORIES.map((name) => ({ businessId, name })),
+    skipDuplicates: true,
+  });
+  await prisma.incomeCategory.createMany({
+    data: DEFAULT_INCOME_CATEGORIES.map((name) => ({ businessId, name })),
+    skipDuplicates: true,
+  });
+  await prisma.salesChannel.createMany({
+    data: DEFAULT_SALES_CHANNELS.map((name) => ({ businessId, name })),
+    skipDuplicates: true,
+  });
+  await prisma.paymentMethod.createMany({
+    data: DEFAULT_PAYMENT_METHODS.map((name) => ({ businessId, name })),
+    skipDuplicates: true,
+  });
 }
