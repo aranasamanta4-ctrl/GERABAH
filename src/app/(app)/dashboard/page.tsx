@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/current-user";
-import { resolveRange, previousRange, daysFromNow } from "@/lib/date-range";
-import { formatIDR, formatDate } from "@/lib/format";
+import { resolveRange, previousRange, daysFromNow, cashflowBuckets } from "@/lib/date-range";
+import { formatIDR, formatIDRCompact, formatDate } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { Card, EmptyState, List, Row, SectionTitle, Stat, Tip } from "@/components/ui";
 import { IconArrowDown, IconArrowUp } from "@/components/icons";
+import { CashflowChart } from "@/components/cashflow-chart";
 
 const RANGES = [
   { key: "today", label: "Hari Ini" },
@@ -31,8 +32,10 @@ export default async function DashboardPage({
   const activeRange = range ?? "month";
   const { from, to, label } = resolveRange(activeRange);
   const prev = previousRange(from, to);
+  const { buckets, windowLabel } = cashflowBuckets(activeRange);
+  const chartFrom = buckets[0].start;
 
-  const [sales, txs, prevTxs, orders, products] = await Promise.all([
+  const [sales, txs, prevTxs, chartTxs, orders, products] = await Promise.all([
     prisma.sale.findMany({
       where: { businessId: business.id, date: { gte: from, lte: to } },
       include: { items: { include: { product: true } }, channel: true },
@@ -44,6 +47,10 @@ export default async function DashboardPage({
     }),
     prisma.financialTransaction.findMany({
       where: { businessId: business.id, date: { gte: prev.from, lte: prev.to } },
+    }),
+    prisma.financialTransaction.findMany({
+      where: { businessId: business.id, date: { gte: chartFrom, lte: to } },
+      select: { type: true, amount: true, date: true },
     }),
     prisma.order.findMany({
       where: { businessId: business.id },
@@ -57,6 +64,17 @@ export default async function DashboardPage({
   const expense = txs.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + t.amount, 0);
   const prevIncome = prevTxs.filter((t) => t.type === "INCOME").reduce((s, t) => s + t.amount, 0);
   const profit = income - expense;
+
+  const chartData = buckets.map((b) => {
+    const inBucket = chartTxs.filter((t) => t.date >= b.start && t.date < b.end);
+    return {
+      label: b.label,
+      fullLabel: b.fullLabel,
+      income: inBucket.filter((t) => t.type === "INCOME").reduce((s, t) => s + t.amount, 0),
+      expense: inBucket.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + t.amount, 0),
+    };
+  });
+  const chartHasData = chartData.some((b) => b.income > 0 || b.expense > 0);
 
   const outstandingOrders = orders.filter((o) => o.remainingPayment > 0 && o.status !== "Cancelled");
   const outstandingAmount = outstandingOrders.reduce((s, o) => s + o.remainingPayment, 0);
@@ -135,7 +153,7 @@ export default async function DashboardPage({
           <Card className="mb-3">
             <p className="label">{profit >= 0 ? "Untung" : "Rugi"} {label.toLowerCase()}</p>
             <p
-              className={`tnum mt-1 font-display text-[40px] leading-none ${
+              className={`tnum mt-1 truncate font-display text-[clamp(30px,10vw,42px)] leading-none ${
                 profit >= 0 ? "text-charcoal" : "text-rose"
               }`}
             >
@@ -143,12 +161,12 @@ export default async function DashboardPage({
             </p>
             <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-3.5">
               <div className="flex items-center gap-2.5">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sage-soft text-sage">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cobalt-soft text-cobalt">
                   <IconArrowDown className="h-4 w-4" strokeWidth={2} />
                 </span>
                 <span className="min-w-0">
                   <span className="label block">Uang Masuk</span>
-                  <span className="tnum block truncate text-[15px] font-bold text-sage">{formatIDR(income)}</span>
+                  <span className="tnum block truncate text-[15px] font-bold text-cobalt">{formatIDR(income)}</span>
                 </span>
               </div>
               <div className="flex items-center gap-2.5">
@@ -169,7 +187,8 @@ export default async function DashboardPage({
             <Stat label="Pesanan" value={String(orders.length)} href="/orders" />
             <Stat
               label="Belum Lunas"
-              value={formatIDR(outstandingAmount)}
+              value={formatIDRCompact(outstandingAmount)}
+              exact={formatIDR(outstandingAmount)}
               tone={outstandingAmount > 0 ? "negative" : "neutral"}
               href="/orders"
             />
@@ -181,6 +200,12 @@ export default async function DashboardPage({
               href="/products"
             />
           </div>
+
+          {chartHasData && (
+            <div className="mt-3">
+              <CashflowChart buckets={chartData} windowLabel={windowLabel} />
+            </div>
+          )}
 
           {dueSoon.length > 0 && (
             <>
@@ -194,7 +219,7 @@ export default async function DashboardPage({
                     meta={`${o.items.map((i) => i.product.name).join(", ")} · ${
                       o.dueDate ? formatDate(o.dueDate) : "-"
                     }`}
-                    amount={formatIDR(o.remainingPayment)}
+                    amount={formatIDRCompact(o.remainingPayment)}
                     amountTone="negative"
                   />
                 ))}
@@ -253,7 +278,7 @@ export default async function DashboardPage({
                     title={t.description || t.incomeCategory?.name || t.expenseCategory?.name || "Transaksi"}
                     meta={`${formatDate(t.date)} · ${t.incomeCategory?.name ?? t.expenseCategory?.name ?? "Lainnya"}`}
                     amount={`${t.type === "INCOME" ? "+" : "−"}${formatIDR(t.amount)}`}
-                    amountTone={t.type === "INCOME" ? "positive" : "negative"}
+                    amountTone={t.type === "INCOME" ? "income" : "expense"}
                   />
                 ))}
               </List>

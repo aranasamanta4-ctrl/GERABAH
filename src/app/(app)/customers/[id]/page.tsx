@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/current-user";
 import { customerTypeLabel } from "@/lib/labels";
-import { formatIDR, formatDate } from "@/lib/format";
+import { formatIDR, formatIDRCompact, formatDate } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { Card, List, Row, SectionTitle, Stat } from "@/components/ui";
 
@@ -36,10 +36,11 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
 
       <div className="grid grid-cols-3 gap-2.5">
         <Stat label="Transaksi" value={String(customer.sales.length)} />
-        <Stat label="Total Belanja" value={formatIDR(spent)} />
+        <Stat label="Total Belanja" value={formatIDRCompact(spent)} exact={formatIDR(spent)} />
         <Stat
           label="Piutang"
-          value={formatIDR(outstanding)}
+          value={formatIDRCompact(outstanding)}
+          exact={formatIDR(outstanding)}
           tone={outstanding > 0 ? "negative" : "neutral"}
         />
       </div>

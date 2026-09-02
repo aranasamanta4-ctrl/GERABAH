@@ -16,6 +16,10 @@ export function SectionTitle({ children, action }: { children: React.ReactNode; 
 
 const TONE = {
   neutral: "text-charcoal",
+  // Money-flow series. Cobalt/terracotta are the CVD-validated pair; sage is a
+  // status colour and must not stand in for "money in" next to terracotta.
+  income: "text-cobalt",
+  expense: "text-terracotta",
   positive: "text-sage",
   negative: "text-terracotta",
   warning: "text-amber",
@@ -24,29 +28,38 @@ const TONE = {
 export function Stat({
   label,
   value,
+  exact,
   hint,
   tone = "neutral",
   href,
 }: {
   label: string;
   value: string;
+  /** Full, unabbreviated figure — surfaced on hover/long-press. */
+  exact?: string;
   hint?: string;
   tone?: keyof typeof TONE;
   href?: string;
 }) {
   const inner = (
     <>
-      <p className="label">{label}</p>
-      <p className={`tnum mt-1.5 text-[19px] font-bold leading-tight ${TONE[tone]}`}>{value}</p>
-      {hint && <p className="mt-0.5 text-[11px] text-muted">{hint}</p>}
+      <p className="label truncate">{label}</p>
+      <p
+        title={exact}
+        className={`tnum mt-1.5 truncate text-[17px] font-bold leading-tight ${TONE[tone]}`}
+      >
+        {value}
+      </p>
+      {hint && <p className="mt-0.5 truncate text-[11px] text-muted">{hint}</p>}
     </>
   );
+  const cls = "card min-w-0 overflow-hidden p-3";
   return href ? (
-    <Link href={href} className="card p-3.5 active:bg-sand">
+    <Link href={href} className={`${cls} active:bg-sand`}>
       {inner}
     </Link>
   ) : (
-    <div className="card p-3.5">{inner}</div>
+    <div className={cls}>{inner}</div>
   );
 }
 

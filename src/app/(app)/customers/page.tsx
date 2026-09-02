@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/current-user";
 import { customerTypeLabel } from "@/lib/labels";
-import { formatIDR } from "@/lib/format";
+import { formatIDR, formatIDRCompact } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState, List, Row } from "@/components/ui";
 import { IconPlus } from "@/components/icons";
@@ -60,7 +60,7 @@ export default async function CustomersPage() {
                 href={`/customers/${c.id}`}
                 title={c.name}
                 meta={`${c.phone ?? "Tanpa nomor"} · ${customerTypeLabel(c.type)} · ${c.sales.length} transaksi`}
-                amount={outstanding > 0 ? `Piutang ${formatIDR(outstanding)}` : formatIDR(spent)}
+                amount={outstanding > 0 ? `Piutang ${formatIDRCompact(outstanding)}` : formatIDR(spent)}
                 amountTone={outstanding > 0 ? "negative" : "neutral"}
               />
             );
