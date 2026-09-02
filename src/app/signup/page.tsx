@@ -24,13 +24,15 @@ export default function SignupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, phone, password }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.error ?? "Gagal mendaftar.");
         return;
       }
       router.push("/onboarding");
       router.refresh();
+    } catch {
+      setError("Tidak bisa mendaftar. Periksa koneksi internet lalu coba lagi.");
     } finally {
       setLoading(false);
     }
