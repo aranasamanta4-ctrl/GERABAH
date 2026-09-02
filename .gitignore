@@ -54,3 +54,8 @@ next-env.d.ts
 /.agents
 /.windsurf
 skills-lock.json
+
+# Local scratch (screenshots, generated invoice previews)
+.shots/
+scripts/preview-invoice.pdf
+scripts/preview-invoice.png

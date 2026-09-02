@@ -1,17 +1,27 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getCurrentBusiness } from "@/lib/current-user";
 import { markSalePaid } from "@/lib/actions/sales";
 import { paymentStatusLabel } from "@/lib/labels";
+import { formatIDR, formatDateTime, invoiceNumber } from "@/lib/format";
+import { PageHeader } from "@/components/page-header";
+import { Card, Pill, SectionTitle } from "@/components/ui";
+import { InvoiceActions } from "@/components/invoice-actions";
 
-function formatIDR(n: number) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
-}
+const TONE: Record<string, "positive" | "negative" | "warning" | "neutral"> = {
+  Paid: "positive",
+  Unpaid: "negative",
+  "Partially Paid": "warning",
+  Cancelled: "neutral",
+};
 
 export default async function SaleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const business = await getCurrentBusiness();
+  if (!business) return null;
 
-  const sale = await prisma.sale.findUnique({
-    where: { id },
+  const sale = await prisma.sale.findFirst({
+    where: { id, businessId: business.id },
     include: {
       customer: true,
       channel: true,
@@ -22,82 +32,92 @@ export default async function SaleDetailPage({ params }: { params: Promise<{ id:
   if (!sale) notFound();
 
   const markPaid = markSalePaid.bind(null, sale.id);
+  const number = invoiceNumber("INV", sale.id, sale.date);
 
   return (
-    <div className="mx-auto max-w-xl p-6 sm:p-8">
-      <h1 className="mb-1 font-serif text-2xl font-semibold text-charcoal">Detail Penjualan</h1>
-      <p className="mb-6 text-sm text-charcoal/50">{sale.date.toLocaleString("id-ID")}</p>
+    <>
+      <PageHeader title="Detail Penjualan" subtitle={formatDateTime(sale.date)} back="/sales" />
 
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <span className="text-sm text-charcoal/60">Pelanggan</span>
-          <span className="text-sm font-medium text-charcoal">{sale.customer?.name ?? "Tanpa nama"}</span>
-        </div>
-        <div className="mb-4 flex items-center justify-between">
-          <span className="text-sm text-charcoal/60">Channel</span>
-          <span className="text-sm font-medium text-charcoal">{sale.channel?.name ?? "-"}</span>
+      <Card>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="label">Nomor Invoice</p>
+            <p className="tnum truncate text-[15px] font-semibold text-charcoal">{number}</p>
+          </div>
+          <Pill tone={TONE[sale.paymentStatus] ?? "neutral"}>{paymentStatusLabel(sale.paymentStatus)}</Pill>
         </div>
 
-        <div className="mb-4 border-t border-border pt-4">
+        <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-3.5 text-[13px]">
+          <div>
+            <span className="label block">Pelanggan</span>
+            <span className="font-medium text-charcoal">{sale.customer?.name ?? "Pelanggan umum"}</span>
+          </div>
+          <div>
+            <span className="label block">Tempat Jualan</span>
+            <span className="font-medium text-charcoal">{sale.channel?.name ?? "-"}</span>
+          </div>
+        </div>
+
+        <div className="mt-4 border-t border-border pt-3.5">
           {sale.items.map((item) => (
-            <div key={item.id} className="flex items-center justify-between text-sm">
-              <span className="text-charcoal/70">
-                {item.product.name} × {item.quantity}
+            <div key={item.id} className="flex items-baseline justify-between gap-3 py-1.5">
+              <span className="min-w-0 text-[14px] text-charcoal">
+                <span className="font-medium">{item.product.name}</span>
+                <span className="text-muted"> × {item.quantity}</span>
               </span>
-              <span className="text-charcoal">{formatIDR(item.lineTotal)}</span>
+              <span className="tnum shrink-0 text-[14px] font-medium">{formatIDR(item.lineTotal)}</span>
             </div>
           ))}
         </div>
 
-        <div className="space-y-1 border-t border-border pt-4 text-sm">
-          <div className="flex justify-between text-charcoal/60">
+        <div className="mt-3 border-t border-border pt-3.5">
+          <div className="flex justify-between py-1 text-[13px] text-muted">
             <span>Subtotal</span>
-            <span>{formatIDR(sale.subtotal)}</span>
+            <span className="tnum">{formatIDR(sale.subtotal)}</span>
           </div>
-          <div className="flex justify-between text-charcoal/60">
-            <span>Diskon</span>
-            <span>-{formatIDR(sale.discount)}</span>
-          </div>
-          <div className="flex justify-between text-base font-semibold text-charcoal">
-            <span>Total</span>
-            <span>{formatIDR(sale.total)}</span>
-          </div>
-          <div className="flex justify-between text-charcoal/60">
-            <span>Dibayar</span>
-            <span>{formatIDR(sale.amountPaid)}</span>
-          </div>
-          <div className="flex justify-between font-medium text-terracotta">
-            <span>Sisa Tagihan</span>
-            <span>{formatIDR(sale.outstandingBalance)}</span>
-          </div>
-        </div>
-
-        <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
-              sale.paymentStatus === "Paid"
-                ? "bg-sage/15 text-sage"
-                : sale.paymentStatus === "Unpaid"
-                ? "bg-red-100 text-red-600"
-                : "bg-amber-100 text-amber-700"
-            }`}
-          >
-            {paymentStatusLabel(sale.paymentStatus)}
-          </span>
-          {sale.outstandingBalance > 0 && (
-            <form action={markPaid}>
-              <button
-                type="submit"
-                className="rounded-full bg-terracotta px-4 py-2 text-sm font-medium text-white hover:bg-terracotta-dark"
-              >
-                Tandai Lunas
-              </button>
-            </form>
+          {sale.discount > 0 && (
+            <div className="flex justify-between py-1 text-[13px] text-muted">
+              <span>Diskon</span>
+              <span className="tnum">−{formatIDR(sale.discount)}</span>
+            </div>
           )}
+          <div className="mt-1 flex items-baseline justify-between border-t border-border pt-3">
+            <span className="text-[15px] font-bold text-charcoal">Total</span>
+            <span className="tnum text-[19px] font-bold text-charcoal">{formatIDR(sale.total)}</span>
+          </div>
+          <div className="flex justify-between py-1 text-[13px] text-muted">
+            <span>Sudah dibayar</span>
+            <span className="tnum">{formatIDR(sale.amountPaid)}</span>
+          </div>
+          <div className="flex justify-between py-1 text-[14px] font-semibold">
+            <span className={sale.outstandingBalance > 0 ? "text-terracotta" : "text-sage"}>Sisa tagihan</span>
+            <span className={`tnum ${sale.outstandingBalance > 0 ? "text-terracotta" : "text-sage"}`}>
+              {formatIDR(sale.outstandingBalance)}
+            </span>
+          </div>
         </div>
 
-        {sale.notes && <p className="mt-4 text-sm text-charcoal/60">Catatan: {sale.notes}</p>}
-      </div>
-    </div>
+        {sale.notes && (
+          <p className="mt-4 border-t border-border pt-3.5 text-[13px] text-muted">Catatan: {sale.notes}</p>
+        )}
+
+        {sale.outstandingBalance > 0 && (
+          <form action={markPaid} className="mt-4 border-t border-border pt-4">
+            <button type="submit" className="btn btn-primary w-full">
+              Tandai Lunas
+            </button>
+          </form>
+        )}
+      </Card>
+
+      <SectionTitle>Invoice</SectionTitle>
+      <Card>
+        <p className="mb-3.5 text-[13px] leading-relaxed text-muted">
+          Buat invoice PDF berisi rincian barang, total, dan terbilang. Bisa dikirim ke pembeli lewat WhatsApp atau
+          disimpan sebagai bukti transaksi.
+        </p>
+        <InvoiceActions url={`/api/invoice/sale/${sale.id}`} filename={`Invoice-${number.replace(/\//g, "-")}.pdf`} />
+      </Card>
+    </>
   );
 }

@@ -1,65 +1,51 @@
 import { createCustomer } from "@/lib/actions/customers";
 import { customerTypeLabel } from "@/lib/labels";
+import { PageHeader } from "@/components/page-header";
+import { Card } from "@/components/ui";
 
 const TYPES = ["New", "Returning", "Reseller", "Wholesale", "Other"];
 
 export default function NewCustomerPage() {
   return (
-    <div className="mx-auto max-w-md p-6 sm:p-8">
-      <h1 className="mb-6 font-serif text-2xl font-semibold text-charcoal">Tambah Pelanggan</h1>
+    <>
+      <PageHeader title="Tambah Pelanggan" subtitle="Simpan kontak pembeli" back="/customers" />
 
-      <form action={createCustomer} className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 shadow-sm">
-        <div>
-          <label className="mb-1 block text-sm text-charcoal/70">Nama</label>
-          <input
-            name="name"
-            required
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm text-charcoal/70">No. HP</label>
-          <input
-            name="phone"
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm text-charcoal/70">Email</label>
-          <input
-            name="email"
-            type="email"
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm text-charcoal/70">Alamat</label>
-          <textarea
-            name="address"
-            rows={2}
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm text-charcoal/70">Tipe</label>
-          <select
-            name="type"
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-          >
-            {TYPES.map((t) => (
-              <option key={t} value={t}>
-                {customerTypeLabel(t)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button
-          type="submit"
-          className="rounded-full bg-terracotta px-4 py-2.5 text-sm font-medium text-white hover:bg-terracotta-dark"
-        >
+      <form action={createCustomer} className="flex flex-col gap-4">
+        <Card>
+          <div className="flex flex-col gap-4">
+            <label className="block">
+              <span className="label mb-1.5 block">Nama</span>
+              <input name="name" required autoFocus className="field" />
+            </label>
+            <label className="block">
+              <span className="label mb-1.5 block">Nomor HP</span>
+              <input name="phone" type="tel" inputMode="tel" placeholder="08…" className="field" />
+            </label>
+            <label className="block">
+              <span className="label mb-1.5 block">Email</span>
+              <input name="email" type="email" className="field" />
+            </label>
+            <label className="block">
+              <span className="label mb-1.5 block">Alamat</span>
+              <textarea name="address" rows={2} className="field" />
+            </label>
+            <label className="block">
+              <span className="label mb-1.5 block">Jenis pelanggan</span>
+              <select name="type" className="field">
+                {TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {customerTypeLabel(t)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </Card>
+
+        <button type="submit" className="btn btn-primary w-full">
           Simpan Pelanggan
         </button>
       </form>
-    </div>
+    </>
   );
 }

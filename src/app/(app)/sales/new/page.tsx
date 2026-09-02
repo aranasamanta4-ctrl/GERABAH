@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/current-user";
 import { createSale } from "@/lib/actions/sales";
+import { PageHeader } from "@/components/page-header";
+import { Card, EmptyState, Tip } from "@/components/ui";
 
 export default async function NewSalePage() {
   const business = await getCurrentBusiness();
@@ -14,157 +16,161 @@ export default async function NewSalePage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-lg p-6 sm:p-8">
-      <h1 className="mb-6 font-serif text-2xl font-semibold text-charcoal">Tambah Penjualan</h1>
+    <>
+      <PageHeader title="Catat Penjualan" subtitle="Stok dan keuangan tercatat otomatis" back="/sales" />
 
       {products.length === 0 ? (
-        <p className="rounded-xl bg-beige/40 p-4 text-sm text-charcoal/60">
-          Belum ada produk aktif. Tambahkan produk terlebih dahulu di halaman Produk.
-        </p>
+        <EmptyState
+          title="Belum ada produk"
+          body="Tambahkan produk terlebih dahulu, karena penjualan dicatat berdasarkan produk yang terjual."
+          actionLabel="Tambah Produk"
+          actionHref="/products/new"
+        />
       ) : (
-        <form
-          action={createSale}
-          className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 shadow-sm"
-        >
-          <div>
-            <label className="mb-1 block text-sm text-charcoal/70">Produk</label>
-            <select
-              name="productId"
-              required
-              className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-            >
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} — Stok {p.stock} — Rp{p.sellingPrice.toLocaleString("id-ID")}
-                </option>
-              ))}
-            </select>
-          </div>
+        <>
+          <form action={createSale} className="flex flex-col gap-4">
+            <Card>
+              <div className="flex flex-col gap-4">
+                <label className="block">
+                  <span className="label mb-1.5 block">Produk yang terjual</span>
+                  <select name="productId" required className="field">
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} — stok {p.stock} — Rp{p.sellingPrice.toLocaleString("id-ID")}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-          <div>
-            <label className="mb-1 block text-sm text-charcoal/70">Pelanggan (opsional)</label>
-            <select
-              name="customerId"
-              className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-            >
-              <option value="">Tanpa nama</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="label mb-1.5 block">Jumlah</span>
+                    <input
+                      name="quantity"
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      defaultValue={1}
+                      required
+                      className="field tnum"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="label mb-1.5 block">Harga satuan (Rp)</span>
+                    <input
+                      name="unitPrice"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      required
+                      defaultValue={products[0]?.sellingPrice ?? 0}
+                      className="field tnum"
+                    />
+                  </label>
+                </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-sm text-charcoal/70">Jumlah</label>
-              <input
-                name="quantity"
-                type="number"
-                min={1}
-                defaultValue={1}
-                required
-                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-charcoal/70">Harga Satuan (Rp)</label>
-              <input
-                name="unitPrice"
-                type="number"
-                min={0}
-                required
-                defaultValue={products[0]?.sellingPrice ?? 0}
-                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-              />
-            </div>
-          </div>
+                <label className="block">
+                  <span className="label mb-1.5 block">Diskon (Rp)</span>
+                  <input
+                    name="discount"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    defaultValue={0}
+                    className="field tnum"
+                  />
+                </label>
+              </div>
+            </Card>
 
-          <div>
-            <label className="mb-1 block text-sm text-charcoal/70">Diskon (Rp)</label>
-            <input
-              name="discount"
-              type="number"
-              min={0}
-              defaultValue={0}
-              className="w-full max-w-[10rem] rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-            />
-          </div>
+            <Card>
+              <div className="flex flex-col gap-4">
+                <label className="block">
+                  <span className="label mb-1.5 block">Pembeli</span>
+                  <select name="customerId" className="field">
+                    <option value="">Pelanggan umum</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-          <div>
-            <label className="mb-1 block text-sm text-charcoal/70">Channel Penjualan</label>
-            <input
-              name="channel"
-              list="channel-options"
-              placeholder="Store / WhatsApp / Instagram ..."
-              className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-            />
-            <datalist id="channel-options">
-              {channels.map((c) => (
-                <option key={c.id} value={c.name} />
-              ))}
-            </datalist>
-          </div>
+                <label className="block">
+                  <span className="label mb-1.5 block">Dijual lewat mana</span>
+                  <input
+                    name="channel"
+                    list="channel-options"
+                    placeholder="Toko / WhatsApp / Pameran"
+                    className="field"
+                  />
+                  <datalist id="channel-options">
+                    {channels.map((c) => (
+                      <option key={c.id} value={c.name} />
+                    ))}
+                  </datalist>
+                </label>
+              </div>
+            </Card>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-sm text-charcoal/70">Status Pembayaran</label>
-              <select
-                name="paymentStatus"
-                defaultValue="Paid"
-                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-              >
-                <option value="Paid">Lunas</option>
-                <option value="Partially Paid">Dibayar Sebagian</option>
-                <option value="Unpaid">Belum Lunas</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-charcoal/70">Metode Pembayaran</label>
-              <input
-                name="paymentMethod"
-                list="payment-options"
-                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-              />
-              <datalist id="payment-options">
-                {paymentMethods.map((p) => (
-                  <option key={p.id} value={p.name} />
-                ))}
-              </datalist>
-            </div>
-          </div>
+            <Card>
+              <div className="flex flex-col gap-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="label mb-1.5 block">Status bayar</span>
+                    <select name="paymentStatus" defaultValue="Paid" className="field">
+                      <option value="Paid">Lunas</option>
+                      <option value="Partially Paid">Dibayar sebagian</option>
+                      <option value="Unpaid">Belum bayar</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="label mb-1.5 block">Bayar pakai</span>
+                    <input name="paymentMethod" list="payment-options" placeholder="Tunai" className="field" />
+                    <datalist id="payment-options">
+                      {paymentMethods.map((p) => (
+                        <option key={p.id} value={p.name} />
+                      ))}
+                    </datalist>
+                  </label>
+                </div>
 
-          <div>
-            <label className="mb-1 block text-sm text-charcoal/70">
-              Jumlah Dibayar (jika Dibayar Sebagian)
-            </label>
-            <input
-              name="amountPaid"
-              type="number"
-              min={0}
-              defaultValue={0}
-              className="w-full max-w-[10rem] rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-            />
-          </div>
+                <label className="block">
+                  <span className="label mb-1.5 block">Sudah dibayar berapa (Rp)</span>
+                  <input
+                    name="amountPaid"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    defaultValue={0}
+                    className="field tnum"
+                  />
+                  <span className="mt-1 block text-[12px] text-muted">
+                    Isi hanya jika status bayar &ldquo;Dibayar sebagian&rdquo;.
+                  </span>
+                </label>
 
-          <div>
-            <label className="mb-1 block text-sm text-charcoal/70">Catatan</label>
-            <textarea
-              name="notes"
-              rows={2}
-              className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-            />
-          </div>
+                <label className="block">
+                  <span className="label mb-1.5 block">Catatan</span>
+                  <textarea name="notes" rows={2} className="field" />
+                </label>
+              </div>
+            </Card>
 
-          <button
-            type="submit"
-            className="rounded-full bg-terracotta px-4 py-2.5 text-sm font-medium text-white hover:bg-terracotta-dark"
-          >
-            Simpan Penjualan
-          </button>
-        </form>
+            <button type="submit" className="btn btn-primary w-full">
+              Simpan Penjualan
+            </button>
+          </form>
+
+          <div className="mt-5">
+            <Tip>
+              Setelah tersimpan, invoice PDF bisa langsung dibuat dari halaman detail penjualan dan dikirim ke
+              pembeli.
+            </Tip>
+          </div>
+        </>
       )}
-    </div>
+    </>
   );
 }

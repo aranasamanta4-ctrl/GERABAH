@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/current-user";
+import { formatIDR } from "@/lib/format";
 import { MediaPreview } from "@/components/media-preview";
-
-function formatIDR(n: number) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
-}
+import { PageHeader } from "@/components/page-header";
+import { EmptyState, Tip } from "@/components/ui";
+import { IconPlus } from "@/components/icons";
 
 export default async function ProductsPage({
   searchParams,
@@ -30,64 +30,66 @@ export default async function ProductsPage({
   ]);
 
   return (
-    <div className="p-6 sm:p-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-serif text-2xl font-semibold text-charcoal">
-          {showArchived ? "Produk Diarsipkan" : "Produk"}
-        </h1>
-        <Link
-          href="/products/new"
-          className="rounded-full bg-terracotta px-4 py-2 text-sm font-medium text-white hover:bg-terracotta-dark"
-        >
-          + Tambah Produk
-        </Link>
-      </div>
-
-      {products.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center">
-          <p className="text-charcoal/60">
-            {showArchived ? "Belum ada produk yang diarsipkan." : "Belum ada produk."}
-          </p>
-          {!showArchived && (
+    <>
+      <PageHeader
+        title={showArchived ? "Produk Diarsipkan" : "Produk"}
+        subtitle={showArchived ? "Tidak tampil di penjualan" : "Katalog, stok, dan biaya produksi"}
+        back={showArchived ? "/products" : undefined}
+        action={
+          !showArchived ? (
             <Link
               href="/products/new"
-              className="mt-4 inline-block rounded-full bg-terracotta px-5 py-2 text-sm font-medium text-white hover:bg-terracotta-dark"
+              aria-label="Tambah produk"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-terracotta text-white active:bg-terracotta-dark"
             >
-              + Tambah Produk
+              <IconPlus className="h-5 w-5" strokeWidth={2.2} />
             </Link>
-          )}
-        </div>
+          ) : undefined
+        }
+      />
+
+      {products.length === 0 ? (
+        <EmptyState
+          title={showArchived ? "Tidak ada arsip" : "Belum ada produk"}
+          body={
+            showArchived
+              ? "Produk yang pernah terjual tidak dihapus permanen, melainkan diarsipkan supaya riwayat penjualan tetap utuh."
+              : "Tambahkan produk beserta rincian biaya produksinya, supaya untung per barang langsung terhitung."
+          }
+          actionLabel={showArchived ? undefined : "Tambah Produk"}
+          actionHref={showArchived ? undefined : "/products/new"}
+        />
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {products.map((p) => {
             const hpp = p.costComponents.reduce((sum, c) => sum + c.amount, 0);
-            const profit = p.sellingPrice - hpp;
-            const margin = p.sellingPrice > 0 ? (profit / p.sellingPrice) * 100 : 0;
+            const margin = p.sellingPrice > 0 ? ((p.sellingPrice - hpp) / p.sellingPrice) * 100 : 0;
+            const lowStock = p.stock <= p.minStock;
             return (
               <Link
                 key={p.id}
                 href={`/products/${p.id}`}
-                className={`group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:shadow-md ${
-                  showArchived ? "opacity-60" : ""
-                }`}
+                className={`card overflow-hidden p-0 active:bg-sand ${showArchived ? "opacity-60" : ""}`}
               >
-                <MediaPreview src={p.photoUrl} alt={p.name} className="aspect-square w-full" />
+                <MediaPreview src={p.photoUrl} alt={p.name} className="aspect-square w-full bg-sand" />
                 <div className="p-3">
-                  <p className="truncate text-sm font-medium text-charcoal">{p.name}</p>
-                  <p className="text-xs text-charcoal/50">{p.category?.name ?? "Tanpa kategori"}</p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-terracotta">
-                      {formatIDR(p.sellingPrice)}
+                  <p className="truncate text-[14px] font-semibold text-charcoal">{p.name}</p>
+                  <p className="truncate text-[11px] text-muted">{p.category?.name ?? "Tanpa kategori"}</p>
+                  <p className="tnum mt-2 text-[15px] font-bold text-charcoal">{formatIDR(p.sellingPrice)}</p>
+                  <div className="mt-1.5 flex items-center justify-between gap-2">
+                    <span className={`text-[11px] font-medium ${lowStock ? "text-amber" : "text-muted"}`}>
+                      Stok {p.stock}
                     </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                        margin >= 0 ? "bg-sage/15 text-sage" : "bg-red-100 text-red-600"
-                      }`}
-                    >
-                      {margin.toFixed(0)}%
-                    </span>
+                    {hpp > 0 && (
+                      <span
+                        className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                          margin >= 0 ? "bg-sage-soft text-sage" : "bg-rose-soft text-rose"
+                        }`}
+                      >
+                        untung {margin.toFixed(0)}%
+                      </span>
+                    )}
                   </div>
-                  <p className="mt-1 text-[11px] text-charcoal/50">Stok: {p.stock}</p>
                 </div>
               </Link>
             );
@@ -95,19 +97,21 @@ export default async function ProductsPage({
         </div>
       )}
 
-      {!showArchived && archivedCount > 0 && (
-        <Link
-          href="/products?archived=1"
-          className="mt-6 inline-block text-xs text-charcoal/50 hover:text-charcoal"
-        >
-          Lihat {archivedCount} produk yang diarsipkan →
-        </Link>
+      {!showArchived && (
+        <>
+          <div className="mt-6">
+            <Tip>
+              Isi biaya produksi tiap produk — tanah liat, upah, bakar, kemasan. Aplikasi akan menghitung sendiri
+              berapa untung per barang, sehingga harga jual tidak lagi ditebak-tebak.
+            </Tip>
+          </div>
+          {archivedCount > 0 && (
+            <Link href="/products?archived=1" className="mt-4 block text-center text-[13px] text-muted">
+              Lihat {archivedCount} produk yang diarsipkan
+            </Link>
+          )}
+        </>
       )}
-      {showArchived && (
-        <Link href="/products" className="mt-6 inline-block text-xs text-charcoal/50 hover:text-charcoal">
-          ← Kembali ke Produk
-        </Link>
-      )}
-    </div>
+    </>
   );
 }

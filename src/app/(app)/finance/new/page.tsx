@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/current-user";
 import { createFinancialTransaction } from "@/lib/actions/finance";
 import { todayISO } from "@/lib/date-range";
+import { PageHeader } from "@/components/page-header";
+import { Card, Tip } from "@/components/ui";
 
 export default async function NewFinancialTransactionPage({
   searchParams,
@@ -13,6 +15,7 @@ export default async function NewFinancialTransactionPage({
   if (!business) return null;
 
   const txType = type === "INCOME" ? "INCOME" : "EXPENSE";
+  const isIncome = txType === "INCOME";
 
   const [incomeCategories, expenseCategories, paymentMethods] = await Promise.all([
     prisma.incomeCategory.findMany({ where: { businessId: business.id }, orderBy: { name: "asc" } }),
@@ -20,94 +23,98 @@ export default async function NewFinancialTransactionPage({
     prisma.paymentMethod.findMany({ where: { businessId: business.id }, orderBy: { name: "asc" } }),
   ]);
 
-  const categories = txType === "INCOME" ? incomeCategories : expenseCategories;
+  const categories = isIncome ? incomeCategories : expenseCategories;
 
   return (
-    <div className="mx-auto max-w-lg p-6 sm:p-8">
-      <h1 className="mb-6 font-serif text-2xl font-semibold text-charcoal">
-        Tambah {txType === "INCOME" ? "Pemasukan" : "Pengeluaran"}
-      </h1>
+    <>
+      <PageHeader
+        title={isIncome ? "Catat Uang Masuk" : "Catat Uang Keluar"}
+        subtitle={isIncome ? "Uang yang diterima usaha" : "Uang yang dikeluarkan usaha"}
+        back="/finance"
+      />
 
-      <form
-        action={createFinancialTransaction}
-        className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 shadow-sm"
-      >
+      <form action={createFinancialTransaction} className="flex flex-col gap-4">
         <input type="hidden" name="type" value={txType} />
 
-        <div>
-          <label className="mb-1 block text-sm text-charcoal/70">Tanggal</label>
-          <input
-            name="date"
-            type="date"
-            defaultValue={todayISO()}
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-          />
-        </div>
+        <Card>
+          <label className="block">
+            <span className="label mb-1.5 block">Jumlah (Rp)</span>
+            <input
+              name="amount"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              required
+              autoFocus
+              placeholder="0"
+              className={`field tnum !min-h-[64px] !text-[30px] font-bold ${
+                isIncome ? "text-sage" : "text-terracotta"
+              }`}
+            />
+          </label>
+        </Card>
 
-        <div>
-          <label className="mb-1 block text-sm text-charcoal/70">Kategori</label>
-          <input
-            name="category"
-            list="category-options"
-            placeholder="Pilih atau ketik baru"
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-          />
-          <datalist id="category-options">
-            {categories.map((c) => (
-              <option key={c.id} value={c.name} />
-            ))}
-          </datalist>
-        </div>
+        <Card>
+          <div className="flex flex-col gap-4">
+            <label className="block">
+              <span className="label mb-1.5 block">Untuk apa</span>
+              <input
+                name="description"
+                placeholder={isIncome ? "mis. Penjualan kendi ke Bu Ani" : "mis. Beli tanah liat 2 karung"}
+                className="field"
+              />
+            </label>
 
-        <div>
-          <label className="mb-1 block text-sm text-charcoal/70">Deskripsi</label>
-          <input
-            name="description"
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-          />
-        </div>
+            <label className="block">
+              <span className="label mb-1.5 block">Kategori</span>
+              <input
+                name="category"
+                list="category-options"
+                placeholder="Pilih atau ketik baru"
+                className="field"
+              />
+              <datalist id="category-options">
+                {categories.map((c) => (
+                  <option key={c.id} value={c.name} />
+                ))}
+              </datalist>
+            </label>
 
-        <div>
-          <label className="mb-1 block text-sm text-charcoal/70">Jumlah (Rp)</label>
-          <input
-            name="amount"
-            type="number"
-            min={0}
-            required
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-          />
-        </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="label mb-1.5 block">Tanggal</span>
+                <input name="date" type="date" defaultValue={todayISO()} className="field" />
+              </label>
+              <label className="block">
+                <span className="label mb-1.5 block">Bayar pakai</span>
+                <input name="paymentMethod" list="payment-options" placeholder="Tunai" className="field" />
+                <datalist id="payment-options">
+                  {paymentMethods.map((p) => (
+                    <option key={p.id} value={p.name} />
+                  ))}
+                </datalist>
+              </label>
+            </div>
 
-        <div>
-          <label className="mb-1 block text-sm text-charcoal/70">Metode Pembayaran</label>
-          <input
-            name="paymentMethod"
-            list="payment-options"
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-          />
-          <datalist id="payment-options">
-            {paymentMethods.map((p) => (
-              <option key={p.id} value={p.name} />
-            ))}
-          </datalist>
-        </div>
+            <label className="block">
+              <span className="label mb-1.5 block">Catatan tambahan</span>
+              <textarea name="notes" rows={2} className="field" />
+            </label>
+          </div>
+        </Card>
 
-        <div>
-          <label className="mb-1 block text-sm text-charcoal/70">Catatan</label>
-          <textarea
-            name="notes"
-            rows={2}
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-terracotta"
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="rounded-full bg-terracotta px-4 py-2.5 text-sm font-medium text-white hover:bg-terracotta-dark"
-        >
-          Simpan Transaksi
+        <button type="submit" className="btn btn-primary w-full">
+          Simpan
         </button>
       </form>
-    </div>
+
+      <div className="mt-5">
+        <Tip>
+          {isIncome
+            ? "Catat hanya uang yang benar-benar diterima. Kalau pembeli masih berhutang, catat lewat menu Penjualan atau Pesanan agar piutangnya terpantau."
+            : "Termasuk pengeluaran kecil: bensin antar barang, tali, plastik, upah harian. Semakin lengkap, semakin akurat perhitungan untung ruginya."}
+        </Tip>
+      </div>
+    </>
   );
 }

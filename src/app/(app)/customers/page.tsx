@@ -2,10 +2,10 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/current-user";
 import { customerTypeLabel } from "@/lib/labels";
-
-function formatIDR(n: number) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
-}
+import { formatIDR } from "@/lib/format";
+import { PageHeader } from "@/components/page-header";
+import { EmptyState, List, Row } from "@/components/ui";
+import { IconPlus } from "@/components/icons";
 
 export default async function CustomersPage() {
   const business = await getCurrentBusiness();
@@ -17,58 +17,56 @@ export default async function CustomersPage() {
     orderBy: { name: "asc" },
   });
 
-  return (
-    <div className="p-6 sm:p-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-serif text-2xl font-semibold text-charcoal">Pelanggan</h1>
-        <Link
-          href="/customers/new"
-          className="rounded-full bg-terracotta px-4 py-2 text-sm font-medium text-white hover:bg-terracotta-dark"
-        >
-          + Tambah Pelanggan
-        </Link>
-      </div>
+  const totalReceivable = customers.reduce(
+    (s, c) => s + c.sales.reduce((x, sale) => x + sale.outstandingBalance, 0),
+    0
+  );
 
-      {customers.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center">
-          <p className="text-charcoal/60">Belum ada pelanggan tercatat.</p>
+  return (
+    <>
+      <PageHeader
+        title="Pelanggan"
+        subtitle={
+          totalReceivable > 0
+            ? `Total piutang ${formatIDR(totalReceivable)}`
+            : "Kontak dan riwayat belanja pembeli"
+        }
+        action={
           <Link
             href="/customers/new"
-            className="mt-4 inline-block rounded-full bg-terracotta px-5 py-2 text-sm font-medium text-white hover:bg-terracotta-dark"
+            aria-label="Tambah pelanggan"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-terracotta text-white active:bg-terracotta-dark"
           >
-            + Tambah Pelanggan
+            <IconPlus className="h-5 w-5" strokeWidth={2.2} />
           </Link>
-        </div>
+        }
+      />
+
+      {customers.length === 0 ? (
+        <EmptyState
+          title="Belum ada pelanggan"
+          body="Simpan nama dan nomor pembeli, supaya mudah menagih sisa pembayaran dan menawarkan produk baru."
+          actionLabel="Tambah Pelanggan"
+          actionHref="/customers/new"
+        />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border">
+        <List>
           {customers.map((c) => {
-            const totalSpending = c.sales.reduce((s, sale) => s + sale.amountPaid, 0);
+            const spent = c.sales.reduce((s, sale) => s + sale.amountPaid, 0);
             const outstanding = c.sales.reduce((s, sale) => s + sale.outstandingBalance, 0);
             return (
-              <Link
+              <Row
                 key={c.id}
                 href={`/customers/${c.id}`}
-                className="flex items-center justify-between border-b border-border bg-card px-4 py-3 text-sm last:border-b-0 hover:bg-beige/30"
-              >
-                <div>
-                  <p className="font-medium text-charcoal">{c.name}</p>
-                  <p className="text-xs text-charcoal/50">
-                    {c.phone ?? "-"} · {customerTypeLabel(c.type)} · {c.sales.length} transaksi
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-medium text-charcoal">{formatIDR(totalSpending)}</p>
-                  {outstanding > 0 && (
-                    <p className="text-xs font-medium text-terracotta">
-                      Piutang {formatIDR(outstanding)}
-                    </p>
-                  )}
-                </div>
-              </Link>
+                title={c.name}
+                meta={`${c.phone ?? "Tanpa nomor"} · ${customerTypeLabel(c.type)} · ${c.sales.length} transaksi`}
+                amount={outstanding > 0 ? `Piutang ${formatIDR(outstanding)}` : formatIDR(spent)}
+                amountTone={outstanding > 0 ? "negative" : "neutral"}
+              />
             );
           })}
-        </div>
+        </List>
       )}
-    </div>
+    </>
   );
 }
