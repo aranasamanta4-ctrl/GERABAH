@@ -14,7 +14,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex flex-1">
       <SidebarNav businessName={business.name} />
-      <main className="flex-1 overflow-x-hidden pb-20 sm:pb-0">{children}</main>
+      <main className="min-w-0 flex-1 overflow-x-hidden px-4 pb-28 sm:px-8 sm:pb-12 sm:pt-8">
+        <div className="mx-auto w-full max-w-3xl">{children}</div>
+      </main>
       <MobileNav />
     </div>
   );

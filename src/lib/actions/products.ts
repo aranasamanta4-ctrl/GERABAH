@@ -104,19 +104,18 @@ export async function adjustProductStock(formData: FormData) {
 }
 
 export async function productHasHistory(productId: string) {
-  const [saleItemCount, orderItemCount, postCount] = await Promise.all([
+  const [saleItemCount, orderItemCount] = await Promise.all([
     prisma.saleItem.count({ where: { productId } }),
     prisma.orderItem.count({ where: { productId } }),
-    prisma.post.count({ where: { productId } }),
   ]);
-  return saleItemCount > 0 || orderItemCount > 0 || postCount > 0;
+  return saleItemCount > 0 || orderItemCount > 0;
 }
 
 export async function deleteProduct(productId: string) {
   await requireBusiness();
 
   if (await productHasHistory(productId)) {
-    // Product has sales/order/community history — hard delete would break those
+    // Product has sales/order history — hard delete would break those
     // records' referential integrity, so archive it instead.
     await prisma.product.update({ where: { id: productId }, data: { status: "inactive" } });
     revalidatePath("/products");

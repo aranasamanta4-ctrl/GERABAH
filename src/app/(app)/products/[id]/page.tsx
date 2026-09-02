@@ -1,22 +1,22 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getCurrentBusiness } from "@/lib/current-user";
 import { deleteProduct, adjustProductStock } from "@/lib/actions/products";
-import { shareProductToCommunity } from "@/lib/actions/community";
+import { formatIDR } from "@/lib/format";
 import { MediaPreview } from "@/components/media-preview";
-
-function formatIDR(n: number) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
-}
+import { PageHeader } from "@/components/page-header";
+import { Card, Pill, SectionTitle, Tip } from "@/components/ui";
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const business = await getCurrentBusiness();
+  if (!business) return null;
 
-  const product = await prisma.product.findUnique({
-    where: { id },
+  const product = await prisma.product.findFirst({
+    where: { id, businessId: business.id },
     include: {
       category: true,
       costComponents: true,
-      posts: true,
       _count: { select: { saleItems: true, orderItems: true } },
     },
   });
@@ -25,164 +25,166 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const hpp = product.costComponents.reduce((sum, c) => sum + c.amount, 0);
   const profit = product.sellingPrice - hpp;
   const margin = product.sellingPrice > 0 ? (profit / product.sellingPrice) * 100 : 0;
-  const alreadyShared = product.posts.length > 0;
-  const hasHistory = alreadyShared || product._count.saleItems > 0 || product._count.orderItems > 0;
+  const hasHistory = product._count.saleItems > 0 || product._count.orderItems > 0;
+  const lowStock = product.stock <= product.minStock;
 
   const deleteProductWithId = deleteProduct.bind(null, product.id);
-  const shareProduct = shareProductToCommunity.bind(null, product.id);
 
-  const statusLabel =
-    product.status === "inactive" ? "Diarsipkan" : product.status === "active" ? "Aktif" : "Stok Habis";
-  const statusClass =
-    product.status === "active"
-      ? "bg-sage/15 text-sage"
-      : product.status === "inactive"
-      ? "bg-charcoal/10 text-charcoal/50"
-      : "bg-red-100 text-red-600";
+  const status =
+    product.status === "inactive"
+      ? { label: "Diarsipkan", tone: "neutral" as const }
+      : lowStock
+      ? { label: "Stok Menipis", tone: "warning" as const }
+      : { label: "Aktif", tone: "positive" as const };
 
   return (
-    <div className="mx-auto max-w-3xl p-6 sm:p-8">
-      <div className="flex flex-col gap-6 sm:flex-row">
-        <MediaPreview
-          src={product.photoUrl}
-          alt={product.name}
-          className="aspect-square w-full rounded-2xl sm:w-56 sm:shrink-0"
-          emojiClassName="text-6xl"
-        />
+    <>
+      <PageHeader
+        title={product.name}
+        subtitle={[product.category?.name ?? "Tanpa kategori", product.material].filter(Boolean).join(" · ")}
+        back="/products"
+      />
 
-        <div className="flex-1">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="font-serif text-2xl font-semibold text-charcoal">{product.name}</h1>
-              <p className="text-sm text-charcoal/50">
-                {product.category?.name ?? "Tanpa kategori"}
-                {product.material ? ` · ${product.material}` : ""}
-              </p>
-            </div>
-            <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass}`}>
-              {statusLabel}
-            </span>
-          </div>
+      <MediaPreview
+        src={product.photoUrl}
+        alt={product.name}
+        className="mb-4 aspect-[4/3] w-full rounded-[14px] bg-sand"
+        emojiClassName="text-6xl"
+      />
 
-          {product.description && (
-            <p className="mt-3 text-sm text-charcoal/70">{product.description}</p>
-          )}
-
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-xl bg-beige/40 p-3">
-              <p className="text-[11px] text-charcoal/50">Harga Jual</p>
-              <p className="text-sm font-semibold text-charcoal">{formatIDR(product.sellingPrice)}</p>
-            </div>
-            <div className="rounded-xl bg-beige/40 p-3">
-              <p className="text-[11px] text-charcoal/50">HPP</p>
-              <p className="text-sm font-semibold text-charcoal">{formatIDR(hpp)}</p>
-            </div>
-            <div className="rounded-xl bg-beige/40 p-3">
-              <p className="text-[11px] text-charcoal/50">Profit</p>
-              <p className="text-sm font-semibold text-terracotta">{formatIDR(profit)}</p>
-            </div>
-            <div className="rounded-xl bg-beige/40 p-3">
-              <p className="text-[11px] text-charcoal/50">Margin</p>
-              <p className="text-sm font-semibold text-sage">{margin.toFixed(1)}%</p>
-            </div>
-          </div>
-
-          <div className="mt-6 rounded-xl border border-border bg-card p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-charcoal/50">Stok Saat Ini</p>
-                <p className="text-lg font-semibold text-charcoal">{product.stock}</p>
-              </div>
-              <p className="text-xs text-charcoal/50">Min. Stok: {product.minStock}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <form action={adjustProductStock}>
-                <input type="hidden" name="productId" value={product.id} />
-                <input type="hidden" name="delta" value={-1} />
-                <button
-                  type="submit"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-lg font-medium text-charcoal hover:bg-beige/60"
-                >
-                  −
-                </button>
-              </form>
-              <form action={adjustProductStock}>
-                <input type="hidden" name="productId" value={product.id} />
-                <input type="hidden" name="delta" value={1} />
-                <button
-                  type="submit"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-lg font-medium text-charcoal hover:bg-beige/60"
-                >
-                  +
-                </button>
-              </form>
-              <form action={adjustProductStock} className="flex items-center gap-2">
-                <input type="hidden" name="productId" value={product.id} />
-                <input
-                  name="delta"
-                  type="number"
-                  placeholder="Jumlah (mis. 10 atau -5)"
-                  className="w-44 rounded-lg border border-border bg-white px-3 py-1.5 text-sm outline-none focus:border-terracotta"
-                />
-                <button
-                  type="submit"
-                  className="rounded-full border border-border px-3 py-1.5 text-sm font-medium text-charcoal hover:bg-beige/60"
-                >
-                  Sesuaikan Stok
-                </button>
-              </form>
-            </div>
-          </div>
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            <form action={shareProduct}>
-              <button
-                type="submit"
-                className="rounded-full bg-terracotta px-4 py-2 text-sm font-medium text-white hover:bg-terracotta-dark"
-              >
-                {alreadyShared ? "Bagikan Lagi ke Komunitas" : "Bagikan ke Komunitas"}
-              </button>
-            </form>
-            {product.status !== "inactive" && (
-              <form action={deleteProductWithId}>
-                <button
-                  type="submit"
-                  className="rounded-full border border-border px-4 py-2 text-sm font-medium text-charcoal/70 hover:bg-beige/60"
-                >
-                  {hasHistory ? "Arsipkan Produk" : "Hapus Produk"}
-                </button>
-              </form>
-            )}
-          </div>
-
-          {hasHistory && product.status !== "inactive" && (
-            <p className="mt-2 text-xs text-charcoal/50">
-              Produk ini punya riwayat penjualan/order{alreadyShared ? " atau sudah dibagikan ke Komunitas" : ""},
-              jadi tidak bisa dihapus permanen — akan diarsipkan (disembunyikan dari katalog) sebagai gantinya.
-            </p>
-          )}
-          {product.status === "inactive" && (
-            <p className="mt-2 text-xs text-charcoal/50">Produk ini sudah diarsipkan.</p>
-          )}
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="label">Harga Jual</p>
+          <p className="tnum font-display text-[32px] leading-none text-charcoal">
+            {formatIDR(product.sellingPrice)}
+          </p>
         </div>
+        <Pill tone={status.tone}>{status.label}</Pill>
       </div>
 
-      {product.costComponents.length > 0 && (
-        <div className="mt-8">
-          <h2 className="mb-2 text-sm font-medium text-charcoal">Rincian Komponen HPP</h2>
-          <div className="overflow-hidden rounded-xl border border-border">
-            {product.costComponents.map((c) => (
-              <div
-                key={c.id}
-                className="flex items-center justify-between border-b border-border bg-card px-4 py-2 text-sm last:border-b-0"
+      {product.description && (
+        <p className="mb-4 text-[14px] leading-relaxed text-charcoal/80">{product.description}</p>
+      )}
+
+      <SectionTitle>Hitungan Untung</SectionTitle>
+      <Card>
+        {hpp === 0 ? (
+          <p className="text-[13px] leading-relaxed text-muted">
+            Biaya produksi belum diisi, jadi untung per barang belum bisa dihitung. Tambahkan rincian biaya saat
+            mengubah produk ini.
+          </p>
+        ) : (
+          <>
+            <div className="flex items-baseline justify-between py-1.5 text-[14px]">
+              <span className="text-muted">Harga jual</span>
+              <span className="tnum font-medium">{formatIDR(product.sellingPrice)}</span>
+            </div>
+            <div className="flex items-baseline justify-between py-1.5 text-[14px]">
+              <span className="text-muted">Biaya produksi (HPP)</span>
+              <span className="tnum font-medium text-terracotta">−{formatIDR(hpp)}</span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between border-t border-border pt-3">
+              <span className="text-[15px] font-bold text-charcoal">Untung per barang</span>
+              <span className={`tnum text-[17px] font-bold ${profit >= 0 ? "text-sage" : "text-rose"}`}>
+                {formatIDR(profit)}
+              </span>
+            </div>
+            <p className="mt-1.5 text-[12px] text-muted">
+              Setara {margin.toFixed(0)}% dari harga jual.
+              {margin < 20 && margin >= 0 && " Margin ini tipis — pertimbangkan menaikkan harga."}
+            </p>
+
+            <div className="mt-4 border-t border-border pt-3.5">
+              <p className="label mb-1.5">Rincian Biaya</p>
+              {product.costComponents.map((c) => (
+                <div key={c.id} className="flex justify-between py-1 text-[13px]">
+                  <span className="text-muted">{c.label}</span>
+                  <span className="tnum font-medium">{formatIDR(c.amount)}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </Card>
+
+      <SectionTitle>Stok</SectionTitle>
+      <Card>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="label">Tersedia Sekarang</p>
+            <p className={`tnum text-[28px] font-bold leading-tight ${lowStock ? "text-amber" : "text-charcoal"}`}>
+              {product.stock}
+            </p>
+            <p className="text-[12px] text-muted">Batas minimum {product.minStock}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <form action={adjustProductStock}>
+              <input type="hidden" name="productId" value={product.id} />
+              <input type="hidden" name="delta" value={-1} />
+              <button
+                type="submit"
+                aria-label="Kurangi satu"
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-border text-2xl text-charcoal active:bg-sand"
               >
-                <span className="text-charcoal/70">{c.label}</span>
-                <span className="font-medium text-charcoal">{formatIDR(c.amount)}</span>
-              </div>
-            ))}
+                −
+              </button>
+            </form>
+            <form action={adjustProductStock}>
+              <input type="hidden" name="productId" value={product.id} />
+              <input type="hidden" name="delta" value={1} />
+              <button
+                type="submit"
+                aria-label="Tambah satu"
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-border text-2xl text-charcoal active:bg-sand"
+              >
+                +
+              </button>
+            </form>
           </div>
         </div>
+
+        <form action={adjustProductStock} className="mt-4 flex items-end gap-2 border-t border-border pt-4">
+          <input type="hidden" name="productId" value={product.id} />
+          <label className="min-w-0 flex-1">
+            <span className="label mb-1.5 block">Sesuaikan banyak sekaligus</span>
+            <input
+              name="delta"
+              type="number"
+              inputMode="numeric"
+              placeholder="mis. 10 atau -5"
+              className="field tnum"
+            />
+          </label>
+          <button type="submit" className="btn btn-secondary shrink-0">
+            Simpan
+          </button>
+        </form>
+      </Card>
+
+      {product.status !== "inactive" && (
+        <>
+          <SectionTitle>Kelola</SectionTitle>
+          <Card>
+            <form action={deleteProductWithId}>
+              <button type="submit" className="btn btn-secondary w-full text-muted">
+                {hasHistory ? "Arsipkan Produk" : "Hapus Produk"}
+              </button>
+            </form>
+            {hasHistory && (
+              <p className="mt-2.5 text-[12px] leading-relaxed text-muted">
+                Produk ini sudah punya riwayat penjualan, jadi tidak dihapus permanen — hanya disembunyikan dari
+                katalog supaya laporan lama tetap benar.
+              </p>
+            )}
+          </Card>
+        </>
       )}
-    </div>
+
+      {product.status === "inactive" && (
+        <div className="mt-4">
+          <Tip>Produk ini sudah diarsipkan dan tidak muncul saat mencatat penjualan baru.</Tip>
+        </div>
+      )}
+    </>
   );
 }

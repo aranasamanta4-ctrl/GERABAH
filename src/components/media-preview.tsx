@@ -17,7 +17,7 @@ export function MediaPreview({
 }) {
   if (!src) {
     return (
-      <div className={`flex items-center justify-center bg-beige/50 ${emojiClassName ?? "text-4xl"} ${className ?? ""}`}>
+      <div className={`flex items-center justify-center bg-sand ${emojiClassName ?? "text-4xl"} ${className ?? ""}`}>
         🏺
       </div>
     );
